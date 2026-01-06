@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Serviço do Banco de Dados (Warehouse)
+  postgres:
+    image: postgres:15
+    container_name: crypto_warehouse
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin_password
+      POSTGRES_DB: crypto_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # Isso garante que seus dados não sumam se você desligar o container
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - data_network
+
+  # Interface visual para gerenciar o banco
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: crypto_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - data_network
+  etl_app:
+    build: .  # Constrói a imagem usando o Dockerfile na pasta atual
+    container_name: crypto_etl
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app  # "Espelha" sua pasta local dentro do container (para editar código sem rebuildar)
+    networks:
+      - data_network
+    # Variáveis de ambiente específicas para DENTRO do container
+    environment:
+      - CMC_API_KEY=${CMC_API_KEY} 
+      # ATENÇÃO: Aqui o host muda de 'localhost' para 'postgres'
+      - DB_CONNECTION_URI=postgresql://admin:admin_password@postgres:5432/crypto_db
+
+networks:
+  data_network:
+    driver: bridge
